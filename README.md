@@ -268,7 +268,7 @@ pnpm rc:major      # major: v2.0.0-rc.1
 pnpm release       # promote the current rc to a clean version, same flow
 
 # Add --dry-run to print the plan and change nothing, e.g.
-# pnpm rc -- --dry-run
+# node scripts/bump-version.mjs --dry-run
 ```
 
 ### WiFi Setup (per cone)
