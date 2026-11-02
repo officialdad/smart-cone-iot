@@ -7,14 +7,16 @@
  *   node scripts/release.mjs minor    → 1.0.13-rc.1 → 1.1.0
  *   node scripts/release.mjs major    → 1.0.13-rc.1 → 2.0.0
  *   node scripts/release.mjs patch    → 1.0.13-rc.1 → 1.0.14
+ *   add --dry-run to print the plan and change nothing
  *
- * Strips -rc.N suffix and creates a clean version tag.
+ * Strips -rc.N suffix. The version commit goes through a pull request, then the
+ * script tags the merge commit. See publish-release.mjs.
  */
 
-import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { preflight, publishRelease } from './publish-release.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -24,20 +26,20 @@ const indexHtmlPath = resolve(rootDir, 'dashboard/public/index.html');
 const hazardsHtmlPath = resolve(rootDir, 'dashboard/public/hazards.html');
 const cifsHtmlPath = resolve(rootDir, 'dashboard/public/cifs-viewer.html');
 
-const bump = process.argv[2] ?? 'minor';
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const bump = args.find((arg) => !arg.startsWith('--')) ?? 'minor';
 if (!['patch', 'minor', 'major'].includes(bump)) {
   console.error(`Unknown bump type "${bump}". Use: patch | minor | major`);
   process.exit(1);
-}
-
-function run(cmd) {
-  return execSync(cmd, { encoding: 'utf8', cwd: rootDir }).trim();
 }
 
 function replaceInFile(filePath, search, replace) {
   const content = readFileSync(filePath, 'utf8');
   writeFileSync(filePath, content.replaceAll(search, replace));
 }
+
+const defaultBranch = preflight(rootDir);
 
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
 const currentVersion = pkg.version;
@@ -52,6 +54,11 @@ else version = `${major}.${minor}.${patch + 1}`;
 const tag = `v${version}`;
 
 console.log(`\n🚀 Production release: ${currentVersion} → ${version}\n`);
+
+if (dryRun) {
+  console.log(`Dry run: would open a PR "release: ${tag}" from release/${tag} into ${defaultBranch}, merge it, then tag the merge commit and push the tag.`);
+  process.exit(0);
+}
 
 // Update files
 pkg.version = version;
@@ -69,9 +76,11 @@ console.log(`  - dashboard/public/hazards.html`);
 console.log(`  - dashboard/public/cifs-viewer.html`);
 console.log();
 
-run(`git add ${pkgPath} ${indexTsPath} ${indexHtmlPath} ${hazardsHtmlPath} ${cifsHtmlPath}`);
-run(`git commit -m "release: ${tag}"`);
-run(`git tag -a ${tag} -m "${tag}"`);
-run('git push --follow-tags');
+await publishRelease({
+  rootDir,
+  defaultBranch,
+  tag,
+  files: [pkgPath, indexTsPath, indexHtmlPath, hazardsHtmlPath, cifsHtmlPath],
+});
 
 console.log(`\n✓ Released ${tag} — GitHub Actions will deploy automatically\n`);
