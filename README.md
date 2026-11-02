@@ -259,10 +259,16 @@ echo "MQTT_USER=xxx" >> .dev.vars
 echo "MQTT_PASSWORD=xxx" >> .dev.vars
 npx wrangler dev
 
-# Release (bumps version, tags, pushes — triggers GitHub Actions deploy)
+# Release (opens a version-bump PR, merges it, tags the merge commit, pushes the
+# tag — the tag push triggers the GitHub Actions deploy)
+# Needs gh logged in, and a local master equal to origin/master.
 pnpm rc            # patch: v1.0.1-rc.1
 pnpm rc:minor      # minor: v1.1.0-rc.1
 pnpm rc:major      # major: v2.0.0-rc.1
+pnpm release       # promote the current rc to a clean version, same flow
+
+# Add --dry-run to print the plan and change nothing, e.g.
+# pnpm rc -- --dry-run
 ```
 
 ### WiFi Setup (per cone)
@@ -280,7 +286,7 @@ pnpm rc:major      # major: v2.0.0-rc.1
 
 ### OTA Firmware Update
 
-1. Push firmware changes to master → GitHub Actions compiles + creates release
+1. Merge firmware changes to master → GitHub Actions compiles + creates release
 2. Dashboard detail panel shows "Update Firmware" button
 3. Click → sends MQTT OTA command → ESP32 downloads + flashes
 4. LED signals: purple = downloading, green blink = success, red blink = failed

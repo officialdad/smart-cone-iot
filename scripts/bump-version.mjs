@@ -11,13 +11,17 @@
  *   1. Reads current version from dashboard/package.json
  *   2. Increments the requested part and appends -rc.N
  *   3. Updates version in package.json, index.ts, and HTML footers
- *   4. git add → git commit → git tag → git push --follow-tags
+ *   4. release commit on a branch → pull request → merge → tag the merge commit → push the tag
+ *      (the default branch refuses direct pushes; see publish-release.mjs)
+ *
+ * Add --dry-run to print the plan and change nothing.
  */
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { preflight, publishRelease } from './publish-release.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -27,7 +31,9 @@ const indexHtmlPath = resolve(rootDir, 'dashboard/public/index.html');
 const hazardsHtmlPath = resolve(rootDir, 'dashboard/public/hazards.html');
 const cifsHtmlPath = resolve(rootDir, 'dashboard/public/cifs-viewer.html');
 
-const bump = process.argv[2] ?? 'patch';
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const bump = args.find((arg) => !arg.startsWith('--')) ?? 'patch';
 if (!['patch', 'minor', 'major'].includes(bump)) {
   console.error(`Unknown bump type "${bump}". Use: patch | minor | major`);
   process.exit(1);
@@ -41,6 +47,8 @@ function replaceInFile(filePath, search, replace) {
   const content = readFileSync(filePath, 'utf8');
   writeFileSync(filePath, content.replaceAll(search, replace));
 }
+
+const defaultBranch = preflight(rootDir);
 
 // Read current version (strip any existing pre-release suffix)
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
@@ -65,6 +73,11 @@ const nextRc = rcNumbers.length ? Math.max(...rcNumbers) + 1 : 1;
 const version = `${next}-rc.${nextRc}`;
 const tag = `v${version}`;
 
+if (dryRun) {
+  console.log(`\nDry run: would bump ${currentVersion} → ${version}, open a PR "release: ${tag}" from release/${tag} into ${defaultBranch}, merge it, then tag the merge commit and push the tag.\n`);
+  process.exit(0);
+}
+
 console.log(`\n📦 Bumping ${currentVersion} → ${version}\n`);
 
 // Update package.json
@@ -87,10 +100,11 @@ console.log(`  - dashboard/public/hazards.html`);
 console.log(`  - dashboard/public/cifs-viewer.html`);
 console.log();
 
-// Commit and tag
-run(`git add ${pkgPath} ${indexTsPath} ${indexHtmlPath} ${hazardsHtmlPath} ${cifsHtmlPath}`);
-run(`git commit -m "release: ${tag}"`);
-run(`git tag -a ${tag} -m "${tag}"`);
-run('git push --follow-tags');
+await publishRelease({
+  rootDir,
+  defaultBranch,
+  tag,
+  files: [pkgPath, indexTsPath, indexHtmlPath, hazardsHtmlPath, cifsHtmlPath],
+});
 
 console.log(`\n✓ Released ${tag} — GitHub Actions will deploy automatically\n`);
