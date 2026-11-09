@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Smart Cone logo: an orange traffic cone with circuit traces and Wi-Fi signal arcs, above the SMARTCONE wordmark and the tagline IoT Traffic Solutions" width="240">
+</p>
+
 # Smart Cone — IoT Cone Knockover Detection
 
 ## Problem
