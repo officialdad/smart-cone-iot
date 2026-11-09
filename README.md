@@ -353,4 +353,4 @@ bd close <id>     # Complete work
 
 ---
 
-&copy; Smart Cone 2026. All Rights Reserved.
+&copy; Smart Cone 2026. Licensed under the [MIT License](LICENSE).
