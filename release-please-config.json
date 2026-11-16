@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "packages": {
+    "dashboard": {
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "src/index.ts"
+        },
+        {
+          "type": "generic",
+          "path": "public/index.html"
+        },
+        {
+          "type": "generic",
+          "path": "public/hazards.html"
+        },
+        {
+          "type": "generic",
+          "path": "public/cifs-viewer.html"
+        }
+      ]
+    }
+  }
+}
